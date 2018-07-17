@@ -65,6 +65,8 @@
 #define OS_AIX 1
 #elif defined(__asmjs__)
 #define OS_ASMJS
+#elif defined(__MVS__)
+#define OS_ZOS 1
 #else
 #error Please add support for your platform in build_config.h
 #endif
@@ -82,7 +84,7 @@
 #if defined(OS_AIX) || defined(OS_ANDROID) || defined(OS_ASMJS) ||    \
     defined(OS_FREEBSD) || defined(OS_LINUX) || defined(OS_MACOSX) || \
     defined(OS_NACL) || defined(OS_NETBSD) || defined(OS_OPENBSD) ||  \
-    defined(OS_QNX) || defined(OS_SOLARIS)
+    defined(OS_QNX) || defined(OS_SOLARIS) || defined(OS_ZOS)
 #define OS_POSIX 1
 #endif
 
@@ -97,6 +99,8 @@
 #define COMPILER_GCC 1
 #elif defined(_MSC_VER)
 #define COMPILER_MSVC 1
+#elif defined(__clang__)
+#define COMPILER_CLANG 1
 #else
 #error Please add support for your compiler in build_config.h
 #endif
@@ -115,7 +119,7 @@
 #define ARCH_CPU_X86 1
 #define ARCH_CPU_32_BITS 1
 #define ARCH_CPU_LITTLE_ENDIAN 1
-#elif defined(__s390x__)
+#elif defined(__s390x__) || defined(__MVS__)
 #define ARCH_CPU_S390_FAMILY 1
 #define ARCH_CPU_S390X 1
 #define ARCH_CPU_64_BITS 1

@@ -50,7 +50,9 @@ std::string OperatingSystemArchitecture() {
 }
 
 int NumberOfProcessors() {
-#if defined(OS_POSIX)
+#if defined(OS_ZOS)
+  return 8;
+#elif defined(OS_POSIX)
   // sysconf returns the number of "logical" (not "physical") processors on both
   // Mac and Linux.  So we get the number of max available "logical" processors.
   //

@@ -18,6 +18,21 @@ On Linux and Mac, the default compiler is `clang++`, a recent version is
 expected to be found in `PATH`. This can be overridden by setting `CC`, `CXX`,
 and `AR`.
 
+On zos, do this.
+
+    export PATH=$PYTHONDIR/bin:<path to njsc compiler>:$PATH
+    export LIBPATH=$PYTHONDIR/lib:$LIBPATH
+    export _BPXK_AUTOCVT=ON
+    export CC="njsc"
+    export CXX="njsc++"
+    export LINK="njsc++"
+    export AR=ar
+    export PATH=<path to ninja>:$PATH
+    git clone https://gn.googlesource.com/gn
+    cd gn
+    python build/gen.py --no-last-commit-position
+    ninja -C out
+
 ## Sending patches
 
 GN uses [Gerrit](https://www.gerritcodereview.com/) for code review. The short

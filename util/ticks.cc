@@ -11,7 +11,7 @@
 #include <windows.h>
 #elif defined(OS_MACOSX)
 #include <mach/mach_time.h>
-#elif defined(OS_LINUX)
+#elif defined(OS_LINUX) || defined(OS_ZOS)
 #include <time.h>
 #else
 #error Port.
@@ -28,6 +28,10 @@ LARGE_INTEGER g_start;
 mach_timebase_info_data_t g_timebase;
 uint64_t g_start;
 #elif defined(OS_LINUX)
+uint64_t g_start;
+#elif defined(OS_ZOS)
+/* TOD Clock resolution in nanoseconds */
+#define TOD_RES 4.096
 uint64_t g_start;
 #else
 #error Port.
@@ -49,6 +53,11 @@ void Init() {
   clock_gettime(CLOCK_MONOTONIC, &ts);
   g_start = static_cast<uint64_t>(ts.tv_sec) * kNano +
             static_cast<uint64_t>(ts.tv_nsec);
+#elif defined(OS_ZOS)
+  unsigned long long timestamp;
+  __stckf(&timestamp);
+  /* Convert to nanoseconds */
+  g_start = timestamp / TOD_RES;
 #else
 #error Port.
 #endif
@@ -80,6 +89,11 @@ Ticks TicksNow() {
   now = (static_cast<uint64_t>(ts.tv_sec) * kNano +
          static_cast<uint64_t>(ts.tv_nsec)) -
         g_start;
+#elif defined(OS_ZOS)
+  unsigned long long timestamp;
+  __stckf(&timestamp);
+  /* Convert to nanoseconds */
+  now = (timestamp / TOD_RES) - g_start;
 #else
 #error Port.
 #endif

@@ -27,7 +27,9 @@
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
 #include <errno.h>
+#ifndef __MVS__
 #include <paths.h>
+#endif
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>

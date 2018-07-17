@@ -13,7 +13,7 @@
 #include "tools/gn/test_with_scope.h"
 #include "util/test/test.h"
 
-#if defined(OS_LINUX) || defined(OS_MACOSX)
+#if defined(OS_LINUX) || defined(OS_MACOSX) || defined(OS_ZOS)
 #include <sys/time.h>
 #endif
 
@@ -85,6 +85,9 @@ TEST_F(WriteFileTest, WithData) {
   FILETIME last_modified_filetime = {};
   ASSERT_TRUE(::SetFileTime(foo_file.GetPlatformFile(), nullptr,
                             &last_access_filetime, &last_modified_filetime));
+#elif defined(OS_ZOS)
+  struct timeval times[2] = {};
+  ASSERT_EQ(utimes(foo_name.AsUTF8Unsafe().c_str(), times), 0);
 #else
   struct timeval times[2] = {};
   ASSERT_EQ(futimes(foo_file.GetPlatformFile(), times), 0);

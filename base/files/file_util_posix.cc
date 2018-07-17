@@ -14,7 +14,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#ifndef OS_ZOS
 #include <sys/param.h>
+#endif
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -47,11 +49,72 @@
 #include <grp.h>
 #endif
 
+#if defined(OS_ZOS)
+static char* mkdtemp(char* path) {
+  static const char* tempchars =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  static const size_t num_chars = 62;
+  static const size_t num_x = 6;
+  char *ep, *cp;
+  unsigned int tries, i;
+  size_t len;
+  uint64_t v;
+  int fd;
+  int retval;
+  int saved_errno;
+
+  len = strlen(path);
+  ep = path + len;
+  if (len < num_x || strncmp(ep - num_x, "XXXXXX", num_x)) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  fd = open("/dev/urandom", O_RDONLY);
+  if (fd == -1)
+    return NULL;
+
+  tries = TMP_MAX;
+  retval = -1;
+  do {
+    if (read(fd, &v, sizeof(v)) != sizeof(v))
+      break;
+
+    cp = ep - num_x;
+    for (i = 0; i < num_x; i++) {
+      *cp++ = tempchars[v % num_chars];
+      v /= num_chars;
+    }
+
+    if (mkdir(path, S_IRWXU) == 0) {
+      retval = 0;
+      break;
+    }
+    else if (errno != EEXIST)
+      break;
+  } while (--tries);
+
+  saved_errno = errno;
+  close(fd);
+  if (tries == 0) {
+    errno = EEXIST;
+    return NULL;
+  }
+
+  if (retval == -1) {
+    errno = saved_errno;
+    return NULL;
+  }
+
+  return path;
+}
+#endif
+
 namespace base {
 
 namespace {
 
-#if defined(OS_BSD) || defined(OS_MACOSX) || defined(OS_NACL) || \
+#if defined(OS_BSD) || defined(OS_MACOSX) || defined(OS_NACL) || defined(OS_ZOS) || \
     defined(OS_ANDROID) && __ANDROID_API__ < 21
 int CallStat(const char* path, stat_wrapper_t* sb) {
   return stat(path, sb);
@@ -968,4 +1031,5 @@ bool MoveUnsafe(const FilePath& from_path, const FilePath& to_path) {
 }  // namespace internal
 
 #endif  // !defined(OS_NACL_NONSFI)
+
 }  // namespace base

@@ -92,4 +92,51 @@ void Semaphore::Wait() {
   DCHECK(result == WAIT_OBJECT_0);
 }
 
+#else
+
+semaphore_imp::semaphore_imp(int count) {
+    count_ = count;
+}
+
+void semaphore_imp::notify() {
+    std::unique_lock<decltype(mutex_)> lock(mutex_);
+    ++count_;
+    condition_.notify_one();
+}
+
+void semaphore_imp::wait() {
+    std::unique_lock<decltype(mutex_)> lock(mutex_);
+    while(!count_) // Handle spurious wake-ups.
+        condition_.wait(lock);
+    --count_;
+}
+
+bool semaphore_imp::try_wait() {
+    std::unique_lock<decltype(mutex_)> lock(mutex_);
+    if(count_) {
+        --count_;
+        return true;
+    }
+    return false;
+}
+
+Semaphore::Semaphore(int count) {
+  DCHECK_GE(count, 0);
+  native_handle_ = new semaphore_imp(count);
+  DCHECK(native_handle_);
+}
+
+Semaphore::~Semaphore() {
+  delete native_handle_;
+}
+
+void Semaphore::Signal() {
+  native_handle_->notify();
+}
+
+void Semaphore::Wait() {
+  native_handle_->wait();
+}
+
+
 #endif

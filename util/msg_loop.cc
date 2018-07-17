@@ -6,10 +6,8 @@
 
 #include "base/logging.h"
 
-namespace {
 
 thread_local MsgLoop* g_current;
-}
 
 MsgLoop::MsgLoop() {
   DCHECK(g_current == nullptr);

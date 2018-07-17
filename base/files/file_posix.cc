@@ -24,7 +24,7 @@ static_assert(File::FROM_BEGIN == SEEK_SET && File::FROM_CURRENT == SEEK_CUR &&
 
 namespace {
 
-#if defined(OS_BSD) || defined(OS_MACOSX) || defined(OS_NACL) || \
+#if defined(OS_BSD) || defined(OS_MACOSX) || defined(OS_NACL) || defined(OS_ZOS) || \
     defined(OS_ANDROID) && __ANDROID_API__ < 21
 int CallFstat(int fd, stat_wrapper_t* sb) {
   return fstat(fd, sb);
@@ -100,6 +100,13 @@ void File::Info::FromStat(const stat_wrapper_t& stat_info) {
   int64_t last_accessed_nsec = stat_info.st_atimespec.tv_nsec;
   time_t creation_time_sec = stat_info.st_ctimespec.tv_sec;
   int64_t creation_time_nsec = stat_info.st_ctimespec.tv_nsec;
+#elif defined(OS_ZOS)
+  time_t last_modified_sec = stat_info.st_mtime;
+  int64_t last_modified_nsec = 0;
+  time_t last_accessed_sec = stat_info.st_atime;
+  int64_t last_accessed_nsec = 0;
+  time_t creation_time_sec = stat_info.st_ctime;
+  int64_t creation_time_nsec = 0;
 #else
 #error
 #endif
@@ -370,7 +377,12 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   else if (flags & FLAG_APPEND)
     open_flags |= O_APPEND | O_WRONLY;
 
+#ifdef OS_ZOS
+  if (open_flags == 0)
+    open_flags = O_RDONLY;
+#else
   static_assert(O_RDONLY == 0, "O_RDONLY must equal zero");
+#endif
 
   int mode = S_IRUSR | S_IWUSR;
   int descriptor = HANDLE_EINTR(open(path.value().c_str(), open_flags, mode));

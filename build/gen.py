@@ -24,7 +24,8 @@ GN_ROOT = os.path.join(REPO_ROOT, 'tools', 'gn')
 is_win = sys.platform.startswith('win')
 is_linux = sys.platform.startswith('linux')
 is_mac = sys.platform.startswith('darwin')
-is_posix = is_linux or is_mac
+is_zos = sys.platform.startswith('zos')
+is_posix = is_linux or is_mac or is_zos
 
 
 def main(argv):
@@ -159,7 +160,8 @@ def WriteGenericNinja(path, static_libraries, executables,
   template_filename = os.path.join(SCRIPT_DIR, {
       'win32': 'build_win.ninja.template',
       'darwin': 'build_mac.ninja.template',
-      'linux2': 'build_linux.ninja.template'
+      'linux2': 'build_linux.ninja.template',
+      'zos': 'build_zos.ninja.template'
   }[sys.platform])
 
   with open(template_filename) as f:
@@ -266,11 +268,18 @@ def WriteGNNinja(path, options, linux_sysroot):
       # Use -fdata-sections and -ffunction-sections to place each function
       # or data item into its own section so --gc-sections can eliminate any
       # unused functions and data items.
-      cflags.extend(['-fdata-sections', '-ffunction-sections'])
-      ldflags.extend(['-fdata-sections', '-ffunction-sections'])
-      ldflags.append('-Wl,-dead_strip' if is_mac else '-Wl,--gc-sections')
+      if not is_zos:
+        cflags.extend(['-fdata-sections', '-ffunction-sections'])
+        ldflags.extend(['-fdata-sections', '-ffunction-sections'])
+      if is_mac:
+        ldflags.append('-Wl,-dead_strip')
+      elif not is_zos:
+        ldflags.append('-Wl,--gc-sections')
       # Omit all symbol information from the output file.
-      ldflags.append('-Wl,-S' if is_mac else '-Wl,-strip-all')
+      if is_mac:
+        ldflags.append('-Wl,-S')
+      elif not is_zos:
+        ldflags.append('-Wl,-strip-all')
       # Enable identical code-folding.
       if options.use_icf:
         ldflags.append('-Wl,--icf=all')
@@ -278,12 +287,15 @@ def WriteGNNinja(path, options, linux_sysroot):
     cflags.extend([
         '-D_FILE_OFFSET_BITS=64',
         '-D__STDC_CONSTANT_MACROS', '-D__STDC_FORMAT_MACROS',
-        '-pthread',
-        '-pipe',
-        '-fno-exceptions',
         '-fno-rtti',
     ])
-    cflags_cc.extend(['-std=c++14', '-Wno-c++11-narrowing'])
+    if is_zos:
+      cflags.append('-DPATH_MAX=_POSIX_PATH_MAX')
+      cflags_cc.extend(['-q64', '-qxclang=-std=c++14', '-Wno-c++11-narrowing'])
+      ldflags.append('-q64')
+    else:
+      cflags.extend(['-pthread', '-pipe', '-fno-exceptions'])
+      cflags_cc.extend(['-std=c++14', '-Wno-c++11-narrowing'])
 
     if is_linux:
       if linux_sysroot:
@@ -594,7 +606,7 @@ def WriteGNNinja(path, options, linux_sysroot):
         'base/strings/string16.cc',
     ])
 
-  if is_linux:
+  if is_linux or is_zos:
     static_libraries['base']['sources'].extend([
         'base/strings/sys_string_conversions_posix.cc',
     ])
@@ -640,8 +652,13 @@ def WriteGNNinja(path, options, linux_sysroot):
     ])
 
   # we just build static libraries that GN needs
-  executables['gn']['libs'].extend(static_libraries.keys())
-  executables['gn_unittests']['libs'].extend(static_libraries.keys())
+  if is_zos:
+    # order matters for zos
+    executables['gn']['libs'].extend(['gn_lib', 'base'])
+    executables['gn_unittests']['libs'].extend(['gn_lib', 'base'])
+  else:
+    executables['gn']['libs'].extend(static_libraries.keys())
+    executables['gn_unittests']['libs'].extend(static_libraries.keys())
 
   WriteGenericNinja(path, static_libraries, executables, cc, cxx, ar, ld,
                     options, cflags, cflags_cc, ldflags, libflags, include_dirs,

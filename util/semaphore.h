@@ -18,7 +18,21 @@
 #elif defined(OS_LINUX)
 #include <semaphore.h>
 #else
-#error Port.
+#include <mutex>
+#include <condition_variable>
+class semaphore_imp
+{
+private:
+    std::mutex mutex_;
+    std::condition_variable condition_;
+    unsigned long count_ = 0;
+
+public:
+    semaphore_imp(int count);
+    void notify();
+    void wait();
+    bool try_wait();
+};
 #endif
 
 class Semaphore {
@@ -39,6 +53,8 @@ class Semaphore {
   typedef sem_t NativeHandle;
 #elif defined(OS_WIN)
   typedef HANDLE NativeHandle;
+#else
+  typedef semaphore_imp* NativeHandle;
 #endif
 
   NativeHandle& native_handle() { return native_handle_; }

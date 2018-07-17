@@ -23,6 +23,10 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#ifdef OS_ZOS
+#include <signal.h>
+#include <sys/time.h>
+#endif
 
 #include "base/posix/eintr_wrapper.h"
 #include "base/posix/file_descriptor_shuffle.h"
